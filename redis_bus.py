@@ -56,11 +56,15 @@ class InMemoryEventBus(AbstractEventBus):
     async def publish(self, thread_id: str, event: dict) -> None:
         event.setdefault("ts", time.time())
         for q in list(self._subscribers.get(thread_id, [])):
-            try: q.put_nowait(event)
-            except asyncio.QueueFull: pass
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                pass
         for q in list(self._subscribers.get("*", [])):
-            try: q.put_nowait({"thread_id": thread_id, **event})
-            except asyncio.QueueFull: pass
+            try:
+                q.put_nowait({"thread_id": thread_id, **event})
+            except asyncio.QueueFull:
+                pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -125,13 +129,17 @@ class RedisEventBus(AbstractEventBus):
                 except Exception:
                     continue
                 for q in list(self._local_queues.get(thread_id, [])):
-                    try: q.put_nowait(event)
-                    except asyncio.QueueFull: pass
+                    try:
+                        q.put_nowait(event)
+                    except asyncio.QueueFull:
+                        pass
         except Exception as exc:
             log.error("redis_reader_error", thread_id=thread_id, error=str(exc))
         finally:
-            try: await pubsub.unsubscribe(self._channel(thread_id))
-            except Exception: pass
+            try:
+                await pubsub.unsubscribe(self._channel(thread_id))
+            except Exception:
+                pass
             self._reader_tasks.pop(thread_id, None)
 
 

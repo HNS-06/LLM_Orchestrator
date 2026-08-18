@@ -18,8 +18,7 @@ import asyncio
 import operator
 import time
 import uuid
-from enum import Enum
-from typing import Annotated, Any, AsyncIterator, Dict, List, Optional, Sequence, TypedDict
+from typing import Annotated, AsyncIterator, List, Optional, TypedDict
 
 import structlog
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
@@ -30,6 +29,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from config import settings
 from metrics import metrics
 from quota_manager import quota_manager
+from redis_bus import get_event_bus
 
 log = structlog.get_logger(__name__)
 
@@ -37,7 +37,6 @@ log = structlog.get_logger(__name__)
 # Event Bus (Redis or in-memory)
 # ─────────────────────────────────────────────────────────────────────────────
 
-from redis_bus import get_event_bus
 event_bus = get_event_bus()
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -411,12 +410,6 @@ def supervisor_node(state: AgentState) -> dict:
     )
 
     # Inject memory context into the prompt
-    last_user_msg = ""
-    for m in reversed(state["messages"]):
-        if isinstance(m, HumanMessage):
-            last_user_msg = m.content
-            break
-
     memory_ctx = state.get("memory_context", [])
     memory_block = ""
     if memory_ctx:
@@ -430,7 +423,8 @@ def supervisor_node(state: AgentState) -> dict:
             _invoke_with_fallback(messages, FALLBACK_MODELS, thread_id, "supervisor", stream_tokens=False)
         )
 
-        import json, re
+        import json
+        import re
         content = response.content.strip()
         match = re.search(r'\{.*?\}', content, re.DOTALL)
         route_data = json.loads(match.group()) if match else {}
@@ -634,7 +628,6 @@ def _make_worker_node(worker_name: str, system_prompt: str):
             }
 
         # Tool-augmented messages
-        last_user = next((m.content for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), "")
         system = SystemMessage(content=system_prompt)
         messages = [system] + state["messages"][-8:]
 
@@ -804,8 +797,6 @@ def reflect_node(state: AgentState) -> dict:
     except Exception as exc:
         log.error("reflect_error", error=str(exc))
         response = AIMessage(content=last_ai_msg or "Refinement completed.")
-        model_used = "unknown"
-        in_tok, out_tok = 0, 0
 
     latency_ms = (time.perf_counter() - t0) * 1000
 
@@ -937,7 +928,8 @@ async def run_graph(
             if last_ai:
                 from evaluator import evaluate_response
                 asyncio.create_task(evaluate_response(thread_id, user_message, last_ai))
-        except Exception: pass
+        except Exception as exc:
+            log.debug("eval_trigger_skipped", error=str(exc))
         await event_bus.publish(thread_id, {"type": "graph_complete", "thread_id": thread_id, "ts": time.time()})
         metrics.active_threads.dec()
 

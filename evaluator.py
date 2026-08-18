@@ -8,9 +8,7 @@ Supports: rubric scoring, pairwise preference, per-dimension radar data.
 
 from __future__ import annotations
 
-import asyncio
 import time
-from typing import Optional
 
 import structlog
 from pydantic import BaseModel, Field
@@ -111,7 +109,8 @@ RESPONSE: {response}"""
 
 def _mock_evaluate(question: str, response: str) -> RubricScore:
     """Heuristic mock evaluator for offline/testing mode."""
-    import random, re
+    import random
+    import re
     word_count = len(response.split())
     has_code   = bool(re.search(r'```|def |class |import ', response))
     has_refs   = bool(re.search(r'https?://|source:|according to', response, re.I))
@@ -135,7 +134,8 @@ def _mock_evaluate(question: str, response: str) -> RubricScore:
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def _llm_evaluate(question: str, response: str, context: str = "") -> RubricScore:
-    import json, re as _re
+    import json
+    import re as _re
     from langchain_openai import ChatOpenAI
     from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -159,7 +159,8 @@ async def _llm_evaluate(question: str, response: str, context: str = "") -> Rubr
 
 async def pairwise_preference(question: str, response_a: str, response_b: str) -> PairwiseResult:
     """Compare two responses and return the preferred one."""
-    import json, re
+    import json
+    import re
     from langchain_openai import ChatOpenAI
     from langchain_core.messages import HumanMessage
 

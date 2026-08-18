@@ -24,10 +24,11 @@ from typing import Optional, List
 
 import jwt
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, status, BackgroundTasks
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse, PlainTextResponse
-from pydantic import BaseModel, Field, HttpUrl
+from fastapi.responses import StreamingResponse, PlainTextResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 from config import settings
 from langgraph_engine import run_graph, get_thread_state, approve_hitl, event_bus
@@ -35,7 +36,6 @@ from semantic_memory import store_interaction, recall_context, memory_stats
 from quota_manager import quota_manager
 from metrics import metrics
 from tools import tool_registry
-from evaluator import evaluate_response
 
 log = structlog.get_logger(__name__)
 
@@ -74,9 +74,6 @@ app.add_middleware(
 )
 
 # Mount dashboard static directory over HTTP to avoid file:// CORS and security origin issues
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
-
 dashboard_dir = os.path.join(os.path.dirname(__file__), "dashboard")
 if os.path.exists(dashboard_dir):
     app.mount("/dashboard", StaticFiles(directory=dashboard_dir, html=True), name="dashboard")
@@ -232,7 +229,9 @@ async def _deliver_webhook(url: str, payload: dict, secret: str = "") -> None:
     try:
         headers = {"Content-Type": "application/json", "X-Orchestrator-Event": payload.get("type", "")}
         if secret:
-            import hmac, hashlib, json
+            import hmac
+            import hashlib
+            import json
             body = json.dumps(payload, default=str).encode()
             sig = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
             headers["X-Webhook-Signature"] = f"sha256={sig}"
@@ -326,7 +325,6 @@ async def orchestrate_sse(
     async def generator():
         import json
         yield f"data: {json.dumps({'type':'stream_start','thread_id':thread_id})}\n\n"
-        final_response = ""
         async for event in run_graph(body.message, thread_id=thread_id, client_id=client_id):
             yield f"data: {json.dumps(event, default=str)}\n\n"
             if event.get("type") == "graph_complete":
@@ -641,8 +639,10 @@ async def websocket_events(websocket: WebSocket):
         for tid, q in queues:
             event_bus.unsubscribe(tid, q)
         metrics.active_ws.dec()
-        try: await websocket.close()
-        except Exception: pass
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 
 # ── Health ────────────────────────────────────────────────────────────────────

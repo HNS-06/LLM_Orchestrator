@@ -14,10 +14,10 @@ Supported models and pricing (USD per 1M tokens, as of 2026):
 
 from __future__ import annotations
 
+import datetime
 import time
 from dataclasses import dataclass, field
-from datetime import date
-from typing import Dict, Optional
+from typing import Optional
 
 import structlog
 
@@ -27,7 +27,7 @@ log = structlog.get_logger(__name__)
 # Pricing Table  (USD per 1M tokens)
 # ─────────────────────────────────────────────────────────────────────────────
 
-PRICING: Dict[str, Dict[str, float]] = {
+PRICING: dict[str, dict[str, float]] = {
     "gpt-4o-mini":          {"input": 0.15,  "output": 0.60},
     "gpt-4o":               {"input": 5.00,  "output": 15.00},
     "claude-3-haiku":       {"input": 0.25,  "output": 1.25},
@@ -39,6 +39,10 @@ PRICING: Dict[str, Dict[str, float]] = {
 }
 
 DEFAULT_PRICING = {"input": 5.00, "output": 15.00}
+
+
+def _get_utc_today() -> str:
+    return str(datetime.datetime.now(tz=datetime.timezone.utc).date())
 
 
 def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
@@ -60,7 +64,7 @@ class UsageRecord:
     request_count: int = 0
     error_count: int = 0
     last_seen: float = field(default_factory=time.time)
-    daily_reset_date: str = field(default_factory=lambda: str(date.today()))
+    daily_reset_date: str = field(default_factory=_get_utc_today)
 
     # Limits (0 = unlimited)
     daily_token_limit: int = 500_000
@@ -72,7 +76,7 @@ class UsageRecord:
 
     def check_limits(self) -> tuple[bool, str]:
         """Returns (allowed, reason). allowed=False means quota exceeded."""
-        today = str(date.today())
+        today = _get_utc_today()
         if self.daily_reset_date != today:
             # New day – reset daily counters
             self.input_tokens = 0
@@ -153,8 +157,8 @@ class ThreadCost:
 
 class QuotaManager:
     def __init__(self) -> None:
-        self._usage:   Dict[str, UsageRecord] = {}
-        self._threads: Dict[str, ThreadCost]  = {}
+        self._usage:   dict[str, UsageRecord] = {}
+        self._threads: dict[str, ThreadCost]  = {}
 
     # ── Client records ────────────────────────────────────────────────────────
 

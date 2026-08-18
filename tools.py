@@ -16,14 +16,12 @@ from __future__ import annotations
 
 import ast
 import asyncio
-import inspect
 import operator as _op
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 import structlog
-from pydantic import BaseModel, Field
 
 log = structlog.get_logger(__name__)
 
@@ -150,7 +148,9 @@ async def _code_exec(code: str, timeout_seconds: int = 10) -> dict:
     Safe Python code execution using subprocess isolation.
     Returns stdout, stderr, and exit code.
     """
-    import subprocess, sys, tempfile, os
+    import sys
+    import tempfile
+    import os
     with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
         f.write(code)
         tmp_path = f.name
@@ -168,12 +168,16 @@ async def _code_exec(code: str, timeout_seconds: int = 10) -> dict:
             "success": proc.returncode == 0,
         }
     except asyncio.TimeoutError:
-        try: proc.kill()
-        except Exception: pass
+        try:
+            proc.kill()
+        except Exception:
+            pass
         return {"stdout": "", "stderr": "Execution timed out", "exit_code": -1, "success": False}
     finally:
-        try: os.unlink(tmp_path)
-        except Exception: pass
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
 
 
 async def _sql_query(query: str, params: Optional[list] = None) -> dict:
@@ -224,16 +228,19 @@ def _calculator(expression: str) -> dict:
             return node.value
         if isinstance(node, ast.BinOp):
             op = SAFE_OPS.get(type(node.op))
-            if op is None: raise ValueError(f"Unsupported operator: {node.op}")
+            if op is None:
+                raise ValueError(f"Unsupported operator: {node.op}")
             return op(_eval(node.left), _eval(node.right))
         if isinstance(node, ast.UnaryOp):
             op = SAFE_OPS.get(type(node.op))
-            if op is None: raise ValueError(f"Unsupported operator: {node.op}")
+            if op is None:
+                raise ValueError(f"Unsupported operator: {node.op}")
             return op(_eval(node.operand))
         if isinstance(node, ast.Call):
             fn_name = node.func.id if isinstance(node.func, ast.Name) else None
             fn = SAFE_NAMES.get(fn_name)
-            if fn is None: raise ValueError(f"Unsupported function: {fn_name}")
+            if fn is None:
+                raise ValueError(f"Unsupported function: {fn_name}")
             return fn(*[_eval(a) for a in node.args])
         if isinstance(node, ast.Name) and node.id in SAFE_NAMES:
             return SAFE_NAMES[node.id]
