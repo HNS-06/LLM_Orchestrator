@@ -1,0 +1,94 @@
+version: "3.9"
+
+# One-command full stack:
+#   docker compose up -d
+# Then set USE_POSTGRES_CHECKPOINTER=True and USE_QDRANT_MEMORY=True in .env
+
+services:
+
+  # ── PostgreSQL 16 (Checkpoint Store) ──────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: orchestrator_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: agent_ops
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Qdrant (Vector Memory) ─────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: orchestrator_qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"   # REST API
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI Gateway ────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchestrator_gateway
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_URI=postgresql://postgres:postgres@postgres:5432/agent_ops
+      - QDRANT_URL=http://qdrant:6333
+      - USE_POSTGRES_CHECKPOINTER=True
+      - USE_QDRANT_MEMORY=True
+      - ENVIRONMENT=production
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── OpenTelemetry Collector ────────────────────────────────────────────────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.100.0
+    container_name: orchestrator_otel
+    restart: unless-stopped
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - ./otel-config.yaml:/etc/otel/config.yaml
+    command: ["--config=/etc/otel/config.yaml"]
+
+  # ── Jaeger (Trace Viewer) ──────────────────────────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: orchestrator_jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"  # Jaeger UI → http://localhost:16686
+
+volumes:
+  postgres_data:
+  qdrant_data:

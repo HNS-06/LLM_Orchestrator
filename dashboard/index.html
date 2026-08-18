@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LLM Orchestrator – Multi-Agent Console & 3D Spatial Network</title>
+  <meta name="description" content="Enterprise multi-agent orchestration console: 3D spatial node network, LLM Battle Arena, Vector Memory Inspector, Sandbox Terminal, Reflection Loop, Web Speech Voice Controls."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <!-- Three.js Local & CDN Fallback (Prevents net::ERR_SSL_PROTOCOL_ERROR & file:// origin errors) -->
+  <script src="./vendor/three.min.js"></script>
+  <script>
+    if (typeof THREE === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');
+    }
+  </script>
+
+  <style>
+    /* ── Color Palette ──────────────────────────────────────────────────────── */
+    :root[data-theme="dark"] {
+      --bg-base:      #0b0d13;
+      --bg-surface:   #12151f;
+      --bg-elevated:  #1a1e2d;
+      --bg-hover:     #24293c;
+      --border:       #272c40;
+      --border-sub:   #1a1d2c;
+      --text-1:       #f0f3fe;
+      --text-2:       #9ba4c4;
+      --text-3:       #5d6688;
+      --blue:         #3b82f6;
+      --blue-glow:    rgba(59,130,246,0.3);
+      --green:        #10b981;
+      --amber:        #f59e0b;
+      --red:          #ef4444;
+      --purple:       #8b5cf6;
+      --cyan:         #06b6d4;
+      --pink:         #ec4899;
+    }
+    :root[data-theme="light"] {
+      --bg-base:      #f4f6fa;
+      --bg-surface:   #ffffff;
+      --bg-elevated:  #eef2f8;
+      --bg-hover:     #e2e8f0;
+      --border:       #cbd5e1;
+      --border-sub:   #e2e8f0;
+      --text-1:       #0f172a;
+      --text-2:       #475569;
+      --text-3:       #94a3b8;
+      --blue:         #2563eb;
+      --blue-glow:    rgba(37,99,235,0.15);
+      --green:        #059669;
+      --amber:        #d97706;
+      --red:          #dc2626;
+      --purple:       #7c3aed;
+      --cyan:         #0891b2;
+      --pink:         #db2777;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 14px; -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-1);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+    /* ── Top Navigation Bar ─────────────────────────────────────────────────── */
+    #topbar {
+      height: 50px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      gap: 12px;
+      flex-shrink: 0;
+      z-index: 50;
+    }
+    .logo { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 0.95rem; letter-spacing: -0.02em; }
+    .logo-hex {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; color: #fff; font-weight: bold;
+      box-shadow: 0 2px 10px var(--blue-glow);
+    }
+    .top-divider { width: 1px; height: 22px; background: var(--border); }
+    .status-pill {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.72rem; color: var(--text-2); font-weight: 500;
+      background: var(--bg-elevated); padding: 4px 11px;
+      border-radius: 99px; border: 1px solid var(--border);
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 2s infinite; }
+    .dot.off { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    .top-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .chip {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.72rem; font-family: 'JetBrains Mono', monospace;
+      color: var(--text-2); background: var(--bg-elevated);
+      padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);
+    }
+    .chip-lbl { color: var(--text-3); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .cost-chip { color: var(--green); font-weight: 600; }
+    .token-chip { color: var(--amber); font-weight: 600; }
+
+    .btn {
+      font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 600;
+      border: none; border-radius: 7px; cursor: pointer;
+      transition: all 0.18s ease; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--blue), hsl(217, 91%, 52%));
+      color: #fff; padding: 8px 18px;
+      box-shadow: 0 3px 12px var(--blue-glow);
+    }
+    .btn-primary:hover { background: linear-gradient(135deg, hsl(217, 91%, 65%), var(--blue)); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-ghost { background: var(--bg-elevated); color: var(--text-2); padding: 6px 12px; border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--bg-hover); color: var(--text-1); }
+
+    /* ── Main Dashboard Layout Grid ─────────────────────────────────────────── */
+    #main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 270px 1fr 290px;
+      grid-template-rows: 1fr 190px;
+      background: var(--border-sub);
+      gap: 1px;
+      overflow: hidden;
+      height: calc(100vh - 50px);
+    }
+
+    .panel { background: var(--bg-surface); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    .ph {
+      padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border-sub); flex-shrink: 0; background: var(--bg-surface);
+    }
+    .pt { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+    .pbadge { font-size: 0.68rem; font-family: 'JetBrains Mono', monospace; background: var(--bg-elevated); padding: 2px 8px; border-radius: 99px; color: var(--text-2); border: 1px solid var(--border); }
+
+    /* ── LEFT PANEL: 2D Agent Topology ───────────────────────────────────────── */
+    #graph-panel { grid-column: 1; grid-row: 1; }
+    #graph-wrap-2d { width: 100%; height: 100%; padding: 10px; display: flex; align-items: center; justify-content: center; }
+    #graph-svg { width: 100%; height: 100%; max-height: 380px; }
+    .g-edge { stroke: var(--border); stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .g-edge.active { stroke: var(--blue); stroke-width: 2; filter: drop-shadow(0 0 4px var(--blue)); }
+    .g-edge.ret { stroke: var(--green); stroke-width: 1.5; stroke-dasharray: 4 2; }
+    .ncirc { fill: var(--bg-elevated); stroke: var(--border); stroke-width: 1.5; transition: all 0.3s; }
+    .ncirc.running { stroke: var(--blue); fill: rgba(59,130,246,0.15); filter: drop-shadow(0 0 10px var(--blue)); }
+    .ncirc.done { stroke: var(--green); fill: rgba(16,185,129,0.12); }
+    .ncirc.failed { stroke: var(--red); fill: rgba(239,68,68,0.12); }
+    .npulse { fill: none; stroke: var(--blue); stroke-width: 1.5; opacity: 0; }
+    .npulse.on { animation: ring 1.4s ease-out infinite; }
+    @keyframes ring { 0% { r: 26; opacity: 0.7; } 100% { r: 46; opacity: 0; } }
+    .nlabel { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600; fill: var(--text-2); text-anchor: middle; }
+    .nicon { font-size: 13px; text-anchor: middle; dominant-baseline: central; }
+
+    /* ── CENTER PANEL: STRICT TABS ISOLATION ──────────────────────────────────── */
+    #center-panel { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; }
+    #center-tabs { display: flex; gap: 4px; padding: 8px 14px 0; background: var(--bg-surface); border-bottom: 1px solid var(--border-sub); flex-shrink: 0; overflow-x: auto; }
+    .tab-btn { font-family: 'Inter', sans-serif; font-size: 0.74rem; font-weight: 600; border: none; background: none; cursor: pointer; padding: 6px 11px; border-radius: 6px 6px 0 0; color: var(--text-3); transition: all 0.18s; white-space: nowrap; }
+    .tab-btn.active { background: var(--bg-elevated); color: var(--text-1); border-bottom: 2px solid var(--blue); }
+    .tab-btn:hover:not(.active) { color: var(--text-2); }
+
+    /* STRICT TAB PANE ISOLATION: Default hidden, active flex */
+    .tab-pane { display: none !important; flex: 1; overflow: hidden; flex-direction: column; position: relative; }
+    .tab-pane.active { display: flex !important; }
+
+    /* 1. 3D Net Center Canvas */
+    #pane-3dnet { flex: 1; position: relative; overflow: hidden; min-height: 250px; background: #0b0d13; }
+    #graph-3d-canvas { width: 100%; height: 100%; min-height: 250px; cursor: grab; display: block; }
+    #graph-3d-canvas:active { cursor: grabbing; }
+    .canvas-hint {
+      position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+      font-size: 0.7rem; font-weight: 500; color: var(--text-2); background: rgba(11,13,19,0.85);
+      padding: 4px 14px; border-radius: 99px; border: 1px solid var(--border); pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 10;
+    }
+
+    /* 2. Event Stream View */
+    #event-stream { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+    .ev { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-radius: 8px; background: var(--bg-elevated); border: 1px solid var(--border); animation: slideIn 0.2s ease-out; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .ev-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .ev-node-tag { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 5px; }
+    .ev-node-tag.supervisor { background: rgba(59,130,246,0.15); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+    .ev-node-tag.worker_search { background: rgba(139,92,246,0.15); color: var(--purple); border: 1px solid rgba(139,92,246,0.3); }
+    .ev-node-tag.worker_code { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+    .ev-node-tag.worker_sql { background: rgba(6,182,212,0.15); color: var(--cyan); border: 1px solid rgba(6,182,212,0.3); }
+    .ev-node-tag.reflect { background: rgba(236,72,153,0.15); color: var(--pink); border: 1px solid rgba(236,72,153,0.3); }
+
+    .ev-content { font-size: 0.82rem; color: var(--text-1); line-height: 1.6; word-break: break-word; }
+    .ev-content pre { background: var(--bg-base); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 0.76rem; overflow-x: auto; margin: 8px 0; color: #7dd3fc; }
+    .ev-content code { font-family: 'JetBrains Mono', monospace; background: var(--bg-hover); padding: 2px 5px; border-radius: 4px; font-size: 0.76rem; }
+
+    .stream-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: var(--text-3); gap: 10px; padding: 40px; text-anchor: center; }
+    .stream-empty-icon { font-size: 2.4rem; opacity: 0.3; }
+
+    /* 3. Model Arena View */
+    #pane-arena { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+    .arena-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .arena-card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .arena-card.winner { border-color: var(--green); box-shadow: 0 0 12px rgba(16,185,129,0.2); }
+    .arena-title { font-weight: 700; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+
+    /* 4. Subprocess Sandbox Terminal View (Strictly under Terminal Tab) */
+    #pane-terminal { flex: 1; background: #050608; padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #4af626; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .term-line { display: flex; gap: 8px; align-items: baseline; }
+    .term-prompt { color: var(--blue); font-weight: bold; }
+    .term-info { color: #38bdf8; }
+    .term-out { color: #4af626; }
+    .term-hdr { padding: 8px 12px; background: #12151f; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-size: 0.72rem; color: var(--text-2); flex-shrink: 0; }
+
+    /* 5. Thread History View */
+    #pane-history { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .history-card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+
+    /* 6. Connection Memory View */
+    #pane-memory { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+    #graph-mem-wrap { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .mem-card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+    .mem-path { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--blue); font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+    .mem-stats { font-size: 0.7rem; color: var(--text-3); display: flex; gap: 12px; }
+    .mem-replay-btn { font-size: 0.68rem; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-2); padding: 3px 9px; border-radius: 5px; cursor: pointer; }
+
+    /* ── CENTER BOTTOM PROMPT INPUT BAR ─────────────────────────────────────── */
+    #prompt-bar-container {
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      padding: 10px 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .prompt-presets { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+    .preset-pill {
+      font-size: 0.7rem; font-weight: 500; color: var(--text-2); background: var(--bg-elevated);
+      padding: 3px 10px; border-radius: 99px; border: 1px solid var(--border);
+      cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
+    }
+    .preset-pill:hover { background: var(--bg-hover); color: var(--text-1); border-color: var(--blue); }
+
+    .prompt-input-row { display: flex; gap: 8px; align-items: flex-end; }
+    .prompt-tid-box {
+      background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text-2); font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+      padding: 8px 10px; outline: none; width: 140px; flex-shrink: 0; transition: border-color 0.2s;
+    }
+    .prompt-tid-box:focus { border-color: var(--blue); }
+
+    .prompt-textarea {
+      flex: 1; background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text-1); font-family: 'Inter', sans-serif;
+      font-size: 0.85rem; padding: 10px 14px; resize: none; line-height: 1.5;
+      min-height: 42px; max-height: 100px; outline: none; transition: border-color 0.2s;
+    }
+    .prompt-textarea:focus { border-color: var(--blue); }
+
+    .prompt-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    #orch-btn { height: 42px; padding: 0 20px; font-weight: 600; font-size: 0.85rem; }
+    .spin { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+    #orch-btn.loading .spin { display: block; }
+    #orch-btn.loading .btn-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── RIGHT PANEL: Latency & Telemetry ───────────────────────────────────── */
+    #right-panel { grid-column: 3; grid-row: 1; display: flex; flex-direction: column; }
+    #right-tabs { display: flex; gap: 4px; padding: 8px 12px 0; background: var(--bg-surface); border-bottom: 1px solid var(--border-sub); flex-shrink: 0; }
+
+    #lat-list { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; }
+    .lat-hdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+    .lat-name { font-size: 0.74rem; font-weight: 600; color: var(--text-2); }
+    .lat-val { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--text-3); }
+    .lat-track { height: 6px; background: var(--bg-elevated); border-radius: 99px; overflow: hidden; }
+    .lat-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+    .lat-sub { font-size: 0.65rem; color: var(--text-3); margin-top: 3px; }
+
+    .bar-ing { background: linear-gradient(90deg, var(--green), #34d399); }
+    .bar-rtr { background: linear-gradient(90deg, var(--blue), #60a5fa); }
+    .bar-vec { background: linear-gradient(90deg, var(--cyan), #22d3ee); }
+    .bar-st  { background: linear-gradient(90deg, var(--purple), #a78bfa); }
+    .bar-spec{ background: linear-gradient(90deg, var(--amber), #fbbf24); }
+
+    /* ── BOTTOM PANELS ──────────────────────────────────────────────────────── */
+    #bottom-left { grid-column: 1; grid-row: 2; background: var(--bg-surface); border-top: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    #bottom-center { grid-column: 2; grid-row: 2; background: var(--bg-surface); border-top: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    #bottom-right { grid-column: 3; grid-row: 2; background: var(--bg-surface); border-top: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Token Bucket (Bottom Left) */
+    #token-section { display: flex; align-items: center; gap: 14px; padding: 14px 16px; flex: 1; }
+    .ring-wrap { position: relative; width: 54px; height: 54px; flex-shrink: 0; }
+    #ring-svg { transform: rotate(-90deg); }
+    #ring-bg { fill: none; stroke: var(--bg-elevated); stroke-width: 4; }
+    #ring-fill { fill: none; stroke: var(--blue); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
+    .ring-lbl { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .ring-lbl span:first-child { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700; line-height: 1; }
+    .ring-lbl span:last-child { font-size: 0.55rem; color: var(--text-3); text-transform: uppercase; }
+    .bucket-info h4 { font-size: 0.78rem; font-weight: 600; margin-bottom: 2px; }
+    .bucket-info p { font-size: 0.68rem; color: var(--text-3); }
+
+    /* Gantt Timeline (Bottom Center) */
+    #gantt-wrap { flex: 1; overflow: auto; padding: 8px 12px; display: flex; align-items: center; }
+    #gantt-svg { min-width: 100%; }
+    .gantt-bar { rx: 3; ry: 3; }
+    .gantt-label { font-family: 'Inter', sans-serif; font-size: 8.5px; fill: var(--text-3); }
+    .gantt-bar-label { font-family: 'JetBrains Mono', monospace; font-size: 7.5px; fill: #fff; dominant-baseline: central; }
+    .gantt-time-axis { font-family: 'JetBrains Mono', monospace; font-size: 7.5px; fill: var(--text-3); }
+
+    /* Judge Radar (Bottom Right) */
+    #radar-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 6px; }
+    #radar-svg { max-width: 180px; max-height: 140px; }
+    .radar-bg-ring { fill: none; stroke: var(--border); stroke-width: 0.5; }
+    .radar-area { fill: rgba(139,92,246,0.2); stroke: var(--purple); stroke-width: 1.5; }
+    .radar-overall { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 700; fill: var(--text-1); text-anchor: middle; dominant-baseline: central; }
+
+    /* MODAL STYLING (Vector Memory Inspector) */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 100; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.active { display: flex; }
+    .modal-box { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; width: 640px; max-width: 90vw; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+    .modal-hdr { padding: 14px 18px; border-bottom: 1px solid var(--border-sub); display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: 0.95rem; }
+    .modal-body { padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+
+    /* Toasts */
+    #toasts { position: fixed; top: 60px; right: 16px; z-index: 120; display: flex; flex-direction: column; gap: 6px; }
+    .toast { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.78rem; color: var(--text-2); display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); animation: slideIn 0.2s ease-out; }
+    .toast.success { border-color: var(--green); }
+    .toast.info { border-color: var(--blue); }
+  </style>
+</head>
+<body>
+
+<!-- ── Top Header Bar ───────────────────────────────────────────────────────── -->
+<header id="topbar">
+  <div class="logo">
+    <div class="logo-hex">⬡</div>
+    <span>LLM Multi-Agent Orchestrator</span>
+  </div>
+  <div class="top-divider"></div>
+  <div class="status-pill">
+    <div class="dot" id="gw-dot"></div>
+    <span id="gw-lbl">Connecting...</span>
+  </div>
+  <div class="top-right">
+    <div class="chip"><span class="chip-lbl">TOKENS</span><span id="chip-tokens" class="token-chip">0</span></div>
+    <div class="chip"><span class="chip-lbl">EST. COST</span><span id="chip-cost" class="cost-chip">$0.000000</span></div>
+    <div class="chip"><span class="chip-lbl">MODE</span><span id="mode-chip" style="color:var(--cyan);font-weight:600">Simulated</span></div>
+    <button class="btn btn-ghost" onclick="openMemoryModal()" title="Inspect Qdrant Vector Memories">📚 Vector Memory</button>
+    <button class="btn btn-ghost" onclick="toggleTheme()" title="Toggle Dark/Light Theme">🌓</button>
+    <button class="btn btn-ghost" onclick="exportTrace()" title="Export JSON Execution Trace">⬇ Trace</button>
+  </div>
+</header>
+
+<!-- ── Main Workspace Grid ─────────────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- LEFT PANEL: 2D Agent Topology Diagram -->
+  <div class="panel" id="graph-panel">
+    <div class="ph">
+      <span class="pt">Agent Topology</span>
+      <span class="pbadge" id="graph-badge">idle</span>
+    </div>
+    <div id="graph-wrap-2d">
+      <svg id="graph-svg" viewBox="0 0 272 340" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+            <polygon points="0 0,7 2.5,0 5" fill="var(--border)"/>
+          </marker>
+        </defs>
+
+        <!-- Edges -->
+        <path class="g-edge" id="e-sup-search" d="M112,153 Q72,118 70,106" marker-end="url(#arr)"/>
+        <path class="g-edge ret" id="e-search-sup" d="M60,106 Q55,136 108,158" marker-end="url(#arr)"/>
+        <path class="g-edge" id="e-sup-code" d="M160,153 Q200,116 206,106" marker-end="url(#arr)"/>
+        <path class="g-edge ret" id="e-code-sup" d="M215,106 Q220,138 164,158" marker-end="url(#arr)"/>
+        <path class="g-edge" id="e-sup-sql" d="M136,192 L136,248" marker-end="url(#arr)"/>
+        <path class="g-edge ret" id="e-sql-sup" d="M144,248 Q150,220 144,192" marker-end="url(#arr)"/>
+
+        <!-- Nodes -->
+        <g id="n-supervisor">
+          <circle class="npulse" id="p-supervisor" cx="136" cy="172" r="28"/>
+          <rect class="ncirc supervisor" id="c-supervisor" x="106" y="150" width="60" height="44" rx="7"/>
+          <text class="nicon" x="136" y="173">🧠</text>
+          <text class="nlabel" x="136" y="202">Supervisor</text>
+        </g>
+        <g id="n-memory_inject">
+          <circle cx="136" cy="38" r="12" class="ncirc" id="c-memory_inject"/>
+          <text class="nicon" x="136" y="38" style="font-size:10px">🧩</text>
+          <text class="nlabel" x="136" y="56">Memory</text>
+        </g>
+        <path class="g-edge" d="M136,50 L136,150" marker-end="url(#arr)" stroke-dasharray="3 2"/>
+
+        <g id="n-worker_search">
+          <circle class="npulse" id="p-worker_search" cx="60" cy="82" r="26"/>
+          <circle class="ncirc" id="c-worker_search" cx="60" cy="82" r="26"/>
+          <text class="nicon" x="60" y="82">🔍</text>
+          <text class="nlabel" x="60" y="114">Search</text>
+        </g>
+        <g id="n-worker_code">
+          <circle class="npulse" id="p-worker_code" cx="212" cy="82" r="26"/>
+          <circle class="ncirc" id="c-worker_code" cx="212" cy="82" r="26"/>
+          <text class="nicon" x="212" y="82">⌨️</text>
+          <text class="nlabel" x="212" y="114">Code</text>
+        </g>
+        <g id="n-worker_sql">
+          <circle class="npulse" id="p-worker_sql" cx="136" cy="268" r="26"/>
+          <circle class="ncirc" id="c-worker_sql" cx="136" cy="268" r="26"/>
+          <text class="nicon" x="136" y="268">🗄️</text>
+          <text class="nlabel" x="136" y="300">SQL</text>
+        </g>
+        <g id="n-reflect">
+          <circle class="npulse" id="p-reflect" cx="60" cy="268" r="20"/>
+          <circle class="ncirc" id="c-reflect" cx="60" cy="268" r="20"/>
+          <text class="nicon" x="60" y="268">🔁</text>
+          <text class="nlabel" x="60" y="296">Reflect</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <!-- CENTER PANEL: STRICT INDEPENDENT OPERATIONAL TABS -->
+  <div class="panel" id="center-panel">
+    <div id="center-tabs">
+      <button class="tab-btn active" onclick="switchTab('3dnet',this)">🧊 3D Spatial Network</button>
+      <button class="tab-btn" onclick="switchTab('stream',this)">⬡ Stream</button>
+      <button class="tab-btn" onclick="switchTab('arena',this)">⚔️ Model Arena</button>
+      <button class="tab-btn" onclick="switchTab('terminal',this)">💻 Terminal</button>
+      <button class="tab-btn" onclick="switchTab('history',this)">📋 History</button>
+      <button class="tab-btn" onclick="switchTab('memory',this)">🧠 Memory</button>
+    </div>
+
+    <!-- 1. 3D Spatial Network Hero View (Three.js WebGL + Force Physics) -->
+    <div class="tab-pane active" id="pane-3dnet">
+      <div id="graph-3d-canvas"></div>
+      <div class="canvas-hint">Drag mouse to orbit 3D multi-agent spatial network</div>
+    </div>
+
+    <!-- 2. Event Stream View -->
+    <div class="tab-pane" id="pane-stream">
+      <div id="event-stream">
+        <div class="stream-empty" id="stream-empty">
+          <div class="stream-empty-icon">⬡</div>
+          <div style="font-size:0.85rem;font-weight:600">Multi-Agent Orchestrator Ready</div>
+          <div style="font-size:0.75rem;max-width:360px">Enter a query below or select a quick preset tag to run real-time agent graph execution.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Model Battle Arena View -->
+    <div class="tab-pane" id="pane-arena">
+      <div style="font-size:0.85rem;font-weight:700;margin-bottom:8px">⚔️ Multi-LLM Pairwise Comparison Arena</div>
+      <div class="arena-grid">
+        <div class="arena-card winner">
+          <div class="arena-title"><span>GPT-4o (Supervisor)</span><span style="color:var(--green)">🏆 Winner (+2%)</span></div>
+          <div style="font-size:0.75rem;color:var(--text-2)">Optimal high-concurrency state machine routing, Redis event streaming, and Qdrant memory recall.</div>
+          <div style="font-size:0.68rem;color:var(--text-3);margin-top:auto">Latency: 520 ms · Score: 94% · Cost: $0.0085</div>
+        </div>
+        <div class="arena-card">
+          <div class="arena-title"><span>Claude 3.5 Sonnet</span><span style="color:var(--text-3)">Runner-Up</span></div>
+          <div style="font-size:0.75rem;color:var(--text-2)">Asynchronous pipeline with deterministic state routing and structured fallback validation.</div>
+          <div style="font-size:0.68rem;color:var(--text-3);margin-top:auto">Latency: 610 ms · Score: 92% · Cost: $0.0078</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Subprocess Sandbox Terminal View (Strictly under Terminal Tab) -->
+    <div class="tab-pane" id="pane-terminal">
+      <div class="term-hdr">
+        <span>💻 Isolated Python Sandbox Terminal (`code_exec`)</span>
+        <div>
+          <button class="mem-replay-btn" onclick="runSandboxCode()">▶ Run Test Script</button>
+          <button class="mem-replay-btn" onclick="clearTerminal()">Clear</button>
+        </div>
+      </div>
+      <div id="term-console" style="flex:1;background:#050608;padding:12px;font-family:'JetBrains Mono',monospace;font-size:0.78rem;color:#4af626;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+        <div class="term-line"><span class="term-prompt">[sandbox@orchestrator ~]$</span> <span>py code_exec.py --task-id task-101</span></div>
+        <div class="term-info">[INFO] Initializing Isolated Subprocess Sandbox...</div>
+        <div class="term-info">[INFO] CPU Time Limit: 2.0s | Memory Limit: 512MB</div>
+        <div class="term-out">[STDOUT] Processing task_101 with structlog telemetry...</div>
+        <div class="term-out">[STDOUT] Result: {'status': 'completed', 'query': 'async_python_task_processor'}</div>
+        <div class="term-info">[INFO] Process exited with CODE 0 in 48ms</div>
+      </div>
+    </div>
+
+    <!-- 5. History View -->
+    <div class="tab-pane" id="pane-history">
+      <div id="history-list" style="padding:14px;display:flex;flex-direction:column;gap:8px;overflow-y:auto"></div>
+    </div>
+
+    <!-- 6. Connection Memory View -->
+    <div class="tab-pane" id="pane-memory">
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border-sub);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:0.75rem;color:var(--text-2);font-weight:600">Memorized Topology Pathways & Frequency</span>
+        <button class="mem-replay-btn" onclick="clearConnectionMemory()">Clear Topology Memory</button>
+      </div>
+      <div id="graph-mem-wrap"></div>
+    </div>
+
+    <!-- PROMPT INPUT BAR WITH VOICE CONTROLS -->
+    <div id="prompt-bar-container">
+      <div class="prompt-presets">
+        <span class="preset-pill" onclick="usePreset('Explain multi-agent architecture and latency benchmarks')">🔍 Research Benchmark</span>
+        <span class="preset-pill" onclick="usePreset('Write a high-concurrency Python task processor with structlog')">⌨️ Python Async Code</span>
+        <span class="preset-pill" onclick="usePreset('Generate a SQL query for thread latency percentiles with CTEs')">🗄️ SQL Analytics</span>
+        <span class="preset-pill" onclick="usePreset('Compare SQL query optimization and Python async benchmarks')">⚡ Parallel Fan-Out</span>
+      </div>
+      <div class="prompt-input-row">
+        <input type="text" class="prompt-tid-box" id="tid-input" placeholder="Thread: auto"/>
+        <textarea class="prompt-textarea" id="msg-input" placeholder="Type or speak instructions for the agent orchestrator... (Ctrl+Enter to run)"></textarea>
+        <div class="prompt-actions">
+          <button class="btn btn-ghost" id="mic-btn" onclick="toggleVoiceInput()" title="Voice Dictation (Speech Input)">🎙️</button>
+          <button class="btn btn-ghost" onclick="clearStream()" title="Clear Console">✕</button>
+          <button class="btn btn-primary" id="orch-btn" onclick="orchestrate()">
+            <div class="spin"></div>
+            <span class="btn-text">⬡ Run Agent</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Latency & Telemetry -->
+  <div class="panel" id="right-panel">
+    <div id="right-tabs"><button class="tab-btn active">⚡ Latency Telemetry</button></div>
+    <div id="lat-list">
+      <div class="lat-item">
+        <div class="lat-hdr"><span class="lat-name">Ingress & Auth</span><span class="lat-val" id="lv-ing">5.2 ms</span></div>
+        <div class="lat-track"><div class="lat-fill bar-ing" style="width:65%"></div></div>
+        <div class="lat-sub">FastAPI Gateway · target 4–8 ms</div>
+      </div>
+      <div class="lat-item">
+        <div class="lat-hdr"><span class="lat-name">Router LLM Call</span><span class="lat-val" id="lv-rtr">520 ms</span></div>
+        <div class="lat-track"><div class="lat-fill bar-rtr" style="width:45%"></div></div>
+        <div class="lat-sub">Supervisor Graph Router · target 450–700 ms</div>
+      </div>
+      <div class="lat-item">
+        <div class="lat-hdr"><span class="lat-name">Vector Memory Retrieval</span><span class="lat-val" id="lv-vec">18 ms</span></div>
+        <div class="lat-track"><div class="lat-fill bar-vec" style="width:55%"></div></div>
+        <div class="lat-sub">Qdrant Vector Recall · target 12–25 ms</div>
+      </div>
+      <div class="lat-item">
+        <div class="lat-hdr"><span class="lat-name">Specialist Agent Execution</span><span class="lat-val" id="lv-spec">1450 ms</span></div>
+        <div class="lat-track"><div class="lat-fill bar-spec" style="width:70%"></div></div>
+        <div class="lat-sub">Worker Subgraph · streaming tokens</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM LEFT: Token Bucket -->
+  <div id="bottom-left">
+    <div class="ph"><span class="pt">Rate Limit Guardrail</span></div>
+    <div id="token-section">
+      <div class="ring-wrap">
+        <svg id="ring-svg" width="54" height="54" viewBox="0 0 54 54">
+          <circle id="ring-bg" cx="27" cy="27" r="22"/>
+          <circle id="ring-fill" cx="27" cy="27" r="22" stroke-dasharray="138.2" stroke-dashoffset="0"/>
+        </svg>
+        <div class="ring-lbl"><span id="ring-num">60</span><span>tokens</span></div>
+      </div>
+      <div class="bucket-info">
+        <h4>Token Bucket Limiter</h4>
+        <p id="bucket-sub">60 / 60 capacity · 1/s refill</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM CENTER: Gantt Chart -->
+  <div id="bottom-center">
+    <div class="ph"><span class="pt">Execution Timeline (Gantt)</span><span class="pbadge" id="gantt-thread">—</span></div>
+    <div id="gantt-wrap">
+      <svg id="gantt-svg" height="120" viewBox="0 0 600 120" preserveAspectRatio="xMinYMid meet">
+        <text x="300" y="65" text-anchor="middle" font-size="9.5" fill="var(--text-3)" font-family="Inter,sans-serif">Run an agent execution to render the Gantt timeline</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- BOTTOM RIGHT: Judge Radar -->
+  <div id="bottom-right">
+    <div class="ph"><span class="pt">LLM-as-a-Judge Rubric</span><span class="pbadge">Mock Judge</span></div>
+    <div id="radar-wrap">
+      <svg id="radar-svg" viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+        <text x="100" y="75" text-anchor="middle" font-size="9" fill="var(--text-3)" font-family="Inter,sans-serif">Score ready on execution completion</text>
+      </svg>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- VECTOR MEMORY INSPECTOR MODAL -->
+<div class="modal-overlay" id="memory-modal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <span>📚 Qdrant Vector Memory Inspector</span>
+      <button class="btn btn-ghost" onclick="closeMemoryModal()">✕</button>
+    </div>
+    <div class="modal-body" id="memory-modal-body">
+      <div style="font-size:0.78rem;color:var(--text-2)">Loading vector memory embeddings...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts Container -->
+<div id="toasts"></div>
+
+<script>
+'use strict';
+const CFG = {
+  wsUrl: 'ws://' + window.location.hostname + ':8080/ws/events',
+  apiBase: 'http://' + window.location.hostname + ':8080',
+  tokenCap: 60,
+  tokenRefill: 1.0,
+};
+
+const S = {
+  ws: null, wsOk: false,
+  threadId: null,
+  events: [], evtCount: 0,
+  tokens: { input: 0, output: 0, costUsd: 0 },
+  bucket: { tokens: 60, last: Date.now() },
+  loading: false,
+  ganttData: [],
+  threads: [],
+  nodeMemory: JSON.parse(localStorage.getItem('orchestrator_node_memory') || JSON.stringify({
+    'Supervisor ➔ SEARCH': { path: 'Supervisor ➔ SEARCH', count: 14, totalLatency: 15400, targetNode: 'worker_search' },
+    'Supervisor ➔ CODE': { path: 'Supervisor ➔ CODE', count: 18, totalLatency: 21600, targetNode: 'worker_code' },
+    'Supervisor ➔ SQL': { path: 'Supervisor ➔ SQL', count: 9, totalLatency: 9900, targetNode: 'worker_sql' },
+    'Supervisor ➔ REFLECT': { path: 'Supervisor ➔ REFLECT', count: 5, totalLatency: 4200, targetNode: 'reflect' }
+  })),
+};
+
+const $ = id => document.getElementById(id);
+
+/* ── Theme Toggle ────────────────────────────────────────────────────────── */
+const savedTheme = localStorage.getItem('theme') || 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
+function toggleTheme() {
+  const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('theme', t);
+}
+
+/* ── STRICT TAB SWITCHER (SHOWS ONLY THE ACTIVE TAB PANE) ──────────────── */
+function switchTab(tabKey, btnEl) {
+  const panes = ['3dnet', 'stream', 'arena', 'terminal', 'history', 'memory'];
+  
+  // Highlight tab buttons
+  const tabs = document.querySelectorAll('#center-tabs .tab-btn');
+  tabs.forEach(t => {
+    const isTarget = t.getAttribute('onclick') && t.getAttribute('onclick').includes(`'${tabKey}'`);
+    t.classList.toggle('active', isTarget);
+  });
+
+  // Strictly show ONLY target tab pane, hide all others with display:none
+  panes.forEach(p => {
+    const pane = $('pane-' + p);
+    if (pane) {
+      if (p === tabKey) {
+        pane.classList.add('active');
+        pane.style.display = 'flex';
+      } else {
+        pane.classList.remove('active');
+        pane.style.display = 'none';
+      }
+    }
+  });
+
+  if (tabKey === '3dnet') {
+    setTimeout(() => {
+      init3DSpatialNetwork();
+      resize3DCanvas();
+    }, 50);
+  } else if (tabKey === 'history') {
+    renderThreadHistory();
+  } else if (tabKey === 'memory') {
+    renderConnectionMemoryMatrix();
+  }
+}
+
+/* ── WebSocket Connection ────────────────────────────────────────────────── */
+function initConnection() {
+  setWsState('connecting');
+
+  fetch(CFG.apiBase + '/health')
+    .then(r => r.json())
+    .then(data => {
+      setGwState(true, 'Gateway Online (Port 8080)');
+      connectWS();
+    })
+    .catch(err => {
+      setGwState(false, 'Gateway Offline (Simulated Engine Ready)');
+      setWsState('offline');
+    });
+}
+
+function connectWS() {
+  try {
+    S.ws = new WebSocket(CFG.wsUrl);
+    S.ws.onopen = () => {
+      S.wsOk = true; setWsState('connected');
+      S.ws.send(JSON.stringify({action: 'subscribe', thread_id: '*'}));
+      showToast('Connected to Real-Time Gateway', 'success');
+    };
+    S.ws.onmessage = e => { try { handleEvent(JSON.parse(e.data)); } catch(err) {} };
+    S.ws.onclose = () => { S.wsOk = false; setWsState('offline'); setTimeout(connectWS, 5000); };
+    S.ws.onerror = () => { S.wsOk = false; setWsState('offline'); };
+  } catch(e) { setWsState('offline'); }
+}
+
+function setWsState(st) {
+  const chip = $('mode-chip');
+  if (st === 'connected') { chip.textContent = 'Real-Time'; chip.style.color = 'var(--green)'; }
+  else { chip.textContent = 'Simulated Engine'; chip.style.color = 'var(--cyan)'; }
+}
+
+function setGwState(ok, lbl) {
+  $('gw-dot').className = 'dot' + (ok ? '' : ' off');
+  $('gw-lbl').textContent = lbl;
+}
+
+/* ── Event Stream Handler ───────────────────────────────────────────────── */
+function handleEvent(ev) {
+  const { type, node, status, detail, latency_ms, thread_id, ts, token, input_tokens, output_tokens, cost_usd, score, radar, weighted } = ev;
+  if (type === 'subscribed') return;
+
+  S.events.push(ev);
+  const empty = $('stream-empty'); if (empty) empty.remove();
+
+  if (type === 'token_usage' && input_tokens != null) {
+    S.tokens.input += input_tokens; S.tokens.output += output_tokens; S.tokens.costUsd += cost_usd || 0;
+    updateTokenCostChips();
+  }
+
+  if (node && status) {
+    updateGraphNode(node, status);
+    update3DNodeState(node, status);
+    memorizeNodeConnection(node, status, latency_ms);
+  }
+  if (node && latency_ms) updateLatencyBar(node, latency_ms);
+
+  if (node && status === 'running' && type === 'node_event') {
+    S.ganttData.push({ node, start: ts || Date.now()/1000, end: null, latency_ms: null });
+  }
+  if (node && status === 'done' && type === 'node_event' && latency_ms) {
+    const row = S.ganttData.slice().reverse().find(r => r.node === node && !r.end);
+    if (row) { row.end = ts || Date.now()/1000; row.latency_ms = latency_ms; }
+    drawGanttChart();
+  }
+
+  if (type === 'evaluation_result' && score) drawRadarChart(radar || [], weighted || 0.88);
+  if (type !== 'token_stream') renderEventCard(ev);
+
+  if (type === 'graph_complete') {
+    finishExecution();
+    consumeRateLimitToken();
+  }
+}
+
+function renderEventCard(ev) {
+  const { type, node, status, detail, latency_ms, ts, content } = ev;
+  const timeStr = ts ? new Date(ts*1000).toLocaleTimeString() : new Date().toLocaleTimeString();
+  const nodeName = node || (type === 'graph_complete' ? 'graph' : 'system');
+  const nodeTagClass = nodeName.replace('worker_','');
+
+  const card = document.createElement('div'); card.className = 'ev';
+  let bodyHtml = '';
+  if (content) bodyHtml = `<div class="ev-content">${formatMarkdown(content)}</div>`;
+  else if (detail) bodyHtml = `<div class="ev-content">${esc(detail)}</div>`;
+  else if (type === 'graph_complete') bodyHtml = `<div class="ev-content" style="color:var(--green);font-weight:600">✓ Graph execution completed successfully</div>`;
+  else bodyHtml = `<div class="ev-content" style="color:var(--text-2)">Status: ${status || 'running'}</div>`;
+
+  card.innerHTML = `
+    <div class="ev-header">
+      <span class="ev-node-tag ${nodeTagClass}">${nodeIcon(nodeName)} ${nodeName}</span>
+      <span class="ev-time">${timeStr}</span>
+    </div>
+    ${bodyHtml}
+    <div class="ev-footer">
+      <span>Status: ${status || 'done'}</span>
+      ${latency_ms ? `<span>Latency: ${latency_ms} ms</span>` : ''}
+    </div>
+  `;
+
+  const stream = $('event-stream');
+  if (stream) { stream.appendChild(card); stream.scrollTop = stream.scrollHeight; }
+}
+
+function nodeIcon(name) {
+  if (name.includes('search')) return '🔍';
+  if (name.includes('code')) return '⌨️';
+  if (name.includes('sql')) return '🗄️';
+  if (name.includes('reflect')) return '🔁';
+  if (name.includes('supervisor')) return '🧠';
+  if (name.includes('memory')) return '🧩';
+  return '⬡';
+}
+
+function formatMarkdown(txt) {
+  if (!txt) return '';
+  let html = esc(txt);
+  html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  return html;
+}
+
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function updateGraphNode(node, status) {
+  const c = $(`c-${node}`), p = $(`p-${node}`);
+  if (!c) return;
+  c.classList.remove('running', 'done', 'failed');
+  if (p) p.classList.remove('on');
+  if (status === 'running') { c.classList.add('running'); if (p) p.classList.add('on'); $('graph-badge').textContent = `${node}: running`; }
+  else if (status === 'done') { c.classList.add('done'); $('graph-badge').textContent = `${node}: done`; }
+}
+
+function updateLatencyBar(node, ms) {
+  const map = { supervisor: 'lb-rtr', worker_search: 'lb-spec', worker_code: 'lb-spec', worker_sql: 'lb-spec' };
+  const valMap = { supervisor: 'lv-rtr', worker_search: 'lv-spec', worker_code: 'lv-spec', worker_sql: 'lv-spec' };
+  const b = map[node], v = valMap[node];
+  if (!b || !$(b)) return;
+  $(b).style.width = Math.min(100, (ms / 3000) * 100) + '%';
+  $(v).textContent = Math.round(ms) + ' ms';
+}
+
+function drawGanttChart() {
+  const svg = $('gantt-svg');
+  const rows = S.ganttData.filter(r => r.latency_ms);
+  if (!rows.length) return;
+
+  const W = 580, PAD_L = 70, ROW_H = 14, ROW_GAP = 4, TOP = 18;
+  const totalMs = rows.reduce((s, r) => s + r.latency_ms, 0);
+  const tScale = (W - PAD_L - 15) / (totalMs || 1);
+
+  let html = `<text class="gantt-time-axis" x="${PAD_L}" y="12">0ms</text>`;
+  html += `<text class="gantt-time-axis" x="${W-30}" y="12">${Math.round(totalMs)}ms</text>`;
+
+  let cursor = 0;
+  rows.forEach((r, i) => {
+    const y = TOP + i * (ROW_H + ROW_GAP);
+    const bx = PAD_L + cursor * tScale;
+    const bw = Math.max(r.latency_ms * tScale, 6);
+
+    html += `<rect x="0" y="${y}" width="${W}" height="${ROW_H}" fill="transparent"/>`;
+    html += `<text class="gantt-label" x="${PAD_L - 4}" y="${y + ROW_H - 3}" text-anchor="end">${r.node.replace('worker_','')}</text>`;
+    html += `<rect class="gantt-bar" x="${bx}" y="${y}" width="${bw}" height="${ROW_H}" fill="var(--blue)" rx="3"/>`;
+    if (bw > 25) html += `<text class="gantt-bar-label" x="${bx + bw/2}" y="${y + ROW_H/2 + 1}">${Math.round(r.latency_ms)}ms</text>`;
+
+    cursor += r.latency_ms;
+  });
+
+  svg.setAttribute('height', Math.max(120, TOP + rows.length * (ROW_H + ROW_GAP) + 10));
+  svg.innerHTML = html;
+}
+
+function drawRadarChart(radarData, weighted) {
+  const svg = $('radar-svg');
+  let html = `<polygon points="100,25 145,70 100,115 55,70" class="radar-bg-ring"/>`;
+  html += `<polygon class="radar-area" points="100,30 140,70 100,110 60,70"/>`;
+  html += `<text class="radar-overall" x="100" y="70">${Math.round(weighted * 100)}%</text>`;
+  svg.innerHTML = html;
+}
+
+const RING_C = 2 * Math.PI * 22;
+function consumeRateLimitToken() { S.bucket.tokens = Math.max(0, S.bucket.tokens - 1); updateRing(); }
+function refillBucket() {
+  const now = Date.now();
+  S.bucket.tokens = Math.min(CFG.tokenCap, S.bucket.tokens + (now - S.bucket.last) / 1000 * CFG.tokenRefill);
+  S.bucket.last = now; updateRing();
+}
+function updateRing() {
+  const pct = S.bucket.tokens / CFG.tokenCap;
+  $('ring-fill').style.strokeDashoffset = RING_C * (1 - pct);
+  $('ring-num').textContent = Math.floor(S.bucket.tokens);
+  $('bucket-sub').textContent = `${Math.floor(S.bucket.tokens)} / ${CFG.tokenCap} capacity · 1/s refill`;
+}
+setInterval(refillBucket, 500);
+
+function orchestrate() {
+  const inputEl = $('msg-input');
+  const msg = inputEl.value.trim();
+  if (!msg || S.loading) return;
+
+  const customTid = $('tid-input').value.trim();
+  S.threadId = customTid || 'thread-' + Math.random().toString(36).substring(2, 8);
+  S.loading = true; S.ganttData = [];
+
+  $('orch-btn').classList.add('loading'); $('orch-btn').disabled = true;
+
+  S.threads.unshift({ tid: S.threadId, prompt: msg, status: 'running', time: new Date().toLocaleTimeString(), tokens: 0, costUsd: 0 });
+
+  if (S.wsOk && S.ws) {
+    S.ws.send(JSON.stringify({ action: 'orchestrate', message: msg, thread_id: S.threadId }));
+  } else {
+    runSimulatedExecution(msg, S.threadId);
+  }
+}
+
+function finishExecution() {
+  S.loading = false; $('orch-btn').classList.remove('loading'); $('orch-btn').disabled = false; $('msg-input').value = '';
+  if (S.threads.length > 0) { S.threads[0].status = 'complete'; S.threads[0].tokens = 1100; S.threads[0].costUsd = 0.0085; }
+}
+
+function usePreset(text) { $('msg-input').value = text; orchestrate(); }
+function clearStream() {
+  const el = $('event-stream');
+  if (el) {
+    el.innerHTML = `<div class="stream-empty" id="stream-empty"><div class="stream-empty-icon">⬡</div><div style="font-size:0.85rem;font-weight:600">Multi-Agent Orchestrator Ready</div><div style="font-size:0.75rem;max-width:360px">Enter a query below or select a quick preset tag to run real-time agent graph execution.</div></div>`;
+  }
+}
+
+function updateTokenCostChips() {
+  $('chip-tokens').textContent = (S.tokens.input + S.tokens.output).toLocaleString();
+  $('chip-cost').textContent = '$' + S.tokens.costUsd.toFixed(6);
+}
+
+function runSimulatedExecution(message, threadId) {
+  const qLower = message.toLowerCase();
+  const isFanOut = qLower.includes('and') || qLower.includes('both') || qLower.includes('compare');
+  const workerNode = qLower.includes('sql') || qLower.includes('database') ? 'worker_sql'
+    : qLower.includes('code') || qLower.includes('python') ? 'worker_code' : 'worker_search';
+
+  const events = [
+    { type: 'node_event', node: 'memory_inject', status: 'running', detail: 'Searching long-term vector memory...', ts: Date.now()/1000, delay: 100 },
+    { type: 'node_event', node: 'memory_inject', status: 'done', detail: 'Injected 2 relevant past memories', latency_ms: 18, ts: Date.now()/1000, delay: 300 },
+    { type: 'node_event', node: 'supervisor', status: 'running', detail: 'Routing query to target agent subgraph', ts: Date.now()/1000, delay: 400 },
+    { type: 'node_event', node: 'supervisor', status: 'done', detail: '→ ' + workerNode, latency_ms: 480, ts: Date.now()/1000, delay: 800 },
+    { type: 'node_event', node: workerNode, status: 'running', detail: 'Executing specialist workflow...', ts: Date.now()/1000, delay: 900 },
+    { type: 'node_event', node: workerNode, status: 'done', content: getSampleContent(workerNode, message), latency_ms: 1350, ts: Date.now()/1000, delay: 1800 },
+    { type: 'node_event', node: 'reflect', status: 'running', detail: 'Critiquing and auto-correcting agent response...', ts: Date.now()/1000, delay: 2000 },
+    { type: 'node_event', node: 'reflect', status: 'done', detail: 'Quality score: 94% · Auto-correction verified', latency_ms: 310, ts: Date.now()/1000, delay: 2400 },
+    { type: 'token_usage', node: 'supervisor', input_tokens: 680, output_tokens: 420, cost_usd: 0.008500, delay: 2600 },
+    { type: 'evaluation_result', score: { overall: 0.94 }, radar: [{dimension:'Faithfulness',score:0.94},{dimension:'Relevance',score:0.95},{dimension:'Completeness',score:0.92},{dimension:'Clarity',score:0.95}], weighted: 0.94, delay: 2800 },
+    { type: 'graph_complete', thread_id: threadId, delay: 3000 }
+  ];
+
+  events.forEach(ev => setTimeout(() => handleEvent(ev), ev.delay));
+}
+
+function getSampleContent(node, query) {
+  const shortQ = query ? query.slice(0, 50) : 'agent query';
+  if (node === 'worker_search') return `### 🔍 Research & Architectural Analysis\n\n**Executive Overview:**\nBased on system benchmarks for **"${shortQ}"**:\n\n1. **Cyclic Orchestration:** LangGraph state machine with automatic fallback chains.\n2. **Latency Bounds:** Ingress (5ms), Router (500ms), Specialist (1.4s).\n3. **Memory Integration:** Qdrant HNSW vector retrieval combined with Postgres checkpointer.`;
+  if (node === 'worker_code') return `### ⌨️ Async Code Implementation\n\n\`\`\`python\nimport asyncio\nimport structlog\n\nlog = structlog.get_logger(__name__)\n\nasync def process_task(task_id: str):\n    log.info("task_started", task_id=task_id)\n    await asyncio.sleep(0.05)\n    return {"status": "completed"}\n\`\`\``;
+  if (node === 'worker_sql') return `### 🗄️ SQL Analytics Query\n\n\`\`\`sql\nSELECT node_name, AVG(latency_ms) AS avg_ms, PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95_ms\nFROM agent_execution_logs\nGROUP BY node_name;\n\`\`\``;
+  return `Processed query: ${query}`;
+}
+
+function renderThreadHistory() {
+  const container = $('history-list'); if (!container) return;
+  if (!S.threads.length) { container.innerHTML = `<div style="color:var(--text-3);font-size:0.8rem;text-align:center;padding:30px 10px">📋 No executed threads in history</div>`; return; }
+  container.innerHTML = S.threads.map(t => `
+    <div class="history-card">
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-family:'JetBrains Mono';font-size:0.75rem;color:var(--blue)">ID: ${t.tid}</span>
+        <span style="font-size:0.68rem;padding:2px 8px;border-radius:99px;background:rgba(16,185,129,0.15);color:var(--green)">${t.status}</span>
+      </div>
+      <div style="font-size:0.8rem;font-weight:500">${esc(t.prompt)}</div>
+    </div>
+  `).join('');
+}
+
+/* ── 💻 SUBPROCESS SANDBOX TERMINAL CONTROLS ───────────────────────────── */
+function runSandboxCode() {
+  const consoleEl = $('term-console');
+  if (!consoleEl) return;
+  const tid = 'task-' + Math.floor(Math.random()*900 + 100);
+  const lines = [
+    `<div class="term-line"><span class="term-prompt">[sandbox@orchestrator ~]$</span> <span>py code_exec.py --task-id ${tid}</span></div>`,
+    `<div class="term-info">[INFO] Initializing Isolated Subprocess Sandbox...</div>`,
+    `<div class="term-info">[INFO] CPU Time Limit: 2.0s | Memory Limit: 512MB</div>`,
+    `<div class="term-out">[STDOUT] Executing worker_code script for ${tid}...</div>`,
+    `<div class="term-out">[STDOUT] Result: {'status': 'success', 'latency_ms': 42.8, 'sandbox': 'isolated'}</div>`,
+    `<div class="term-info">[INFO] Process exited with CODE 0 in 42ms</div>`
+  ];
+  lines.forEach(l => {
+    const div = document.createElement('div');
+    div.innerHTML = l;
+    consoleEl.appendChild(div);
+  });
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+function clearTerminal() {
+  const consoleEl = $('term-console');
+  if (consoleEl) consoleEl.innerHTML = `<div class="term-line"><span class="term-prompt">[sandbox@orchestrator ~]$</span> <span>clear</span></div>`;
+}
+
+/* ── 🧊 THREE.JS HERO 3D SPATIAL NETWORK (CROSS-BROWSER COMPATIBLE) ──────── */
+let threeScene, threeCamera, threeRenderer, threeNodes = {}, threeBeams = [], is3DInit = false;
+let isDragging3D = false, previousMousePosition = { x: 0, y: 0 }, physicsClock = 0;
+
+function init3DSpatialNetwork() {
+  if (typeof THREE === 'undefined') return;
+
+  const container = $('graph-3d-canvas');
+  if (!container) return;
+
+  const rect = container.getBoundingClientRect();
+  const W = rect.width || container.clientWidth || 600;
+  const H = rect.height || container.clientHeight || 400;
+
+  if (is3DInit) {
+    resize3DCanvas();
+    return;
+  }
+  is3DInit = true;
+
+  threeScene = new THREE.Scene();
+  threeScene.background = new THREE.Color(0x0b0d13);
+
+  threeCamera = new THREE.PerspectiveCamera(45, W / H, 0.1, 1000);
+  threeCamera.position.set(0, 0, 11);
+
+  threeRenderer = new THREE.WebGLRenderer({ antialias: true });
+  threeRenderer.setSize(W, H);
+  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(threeRenderer.domElement);
+
+  // Lights
+  const ambLight = new THREE.AmbientLight(0xffffff, 0.8);
+  threeScene.add(ambLight);
+  const dirLight = new THREE.DirectionalLight(0x3b82f6, 1.5);
+  dirLight.position.set(5, 10, 8);
+  threeScene.add(dirLight);
+
+  // Background Starfield
+  const starsGeo = new THREE.BufferGeometry();
+  const starsCount = 450;
+  const starPositions = new Float32Array(starsCount * 3);
+  for(let i=0; i<starsCount*3; i++) starPositions[i] = (Math.random() - 0.5) * 40;
+  starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+  const starsMat = new THREE.PointsMaterial({ color: 0x64748b, size: 0.09 });
+  const starField = new THREE.Points(starsGeo, starsMat);
+  threeScene.add(starField);
+
+  // Node Definitions
+  const nodeDefs = {
+    supervisor:     { pos: [0, 0, 0],         color: 0x3b82f6, r: 0.65, label: '🧠 Supervisor Router' },
+    memory_inject:  { pos: [0, 3.2, 0],       color: 0x8b5cf6, r: 0.45, label: '🧩 Long-Term Memory' },
+    worker_search:  { pos: [-3.5, 1.8, -0.6], color: 0x8b5cf6, r: 0.5,  label: '🔍 Search Specialist' },
+    worker_code:    { pos: [3.5, 1.8, 0.6],   color: 0xf59e0b, r: 0.5,  label: '⌨️ Code Specialist' },
+    worker_sql:     { pos: [0, -3.2, 0.4],    color: 0x06b6d4, r: 0.5,  label: '🗄️ SQL Specialist' },
+    reflect:        { pos: [-3.0, -1.8, -0.5],color: 0xec4899, r: 0.45, label: '🔁 Reflection Specialist' },
+  };
+
+  Object.entries(nodeDefs).forEach(([key, def]) => {
+    const geo = new THREE.SphereGeometry(def.r, 32, 32);
+    const mat = new THREE.MeshPhongMaterial({
+      color: def.color,
+      emissive: def.color,
+      emissiveIntensity: 0.5,
+      shininess: 100,
+      transparent: true,
+      opacity: 0.95
+    });
+    const sphere = new THREE.Mesh(geo, mat);
+    sphere.position.set(...def.pos);
+    threeScene.add(sphere);
+
+    // Halo ring
+    const ringGeo = new THREE.RingGeometry(def.r + 0.08, def.r + 0.16, 32);
+    const ringMat = new THREE.MeshBasicMaterial({ color: def.color, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    sphere.add(ring);
+
+    // Text Label Sprite (Safe canvas draw)
+    const labelSprite = createTextLabelSprite(def.label, def.color);
+    labelSprite.position.set(def.pos[0], def.pos[1] + (def.r + 0.45), def.pos[2]);
+    threeScene.add(labelSprite);
+
+    threeNodes[key] = { mesh: sphere, mat: mat, ring: ring, basePos: [...def.pos], defaultColor: def.color };
+  });
+
+  // Connecting 3D Lines
+  const connections = [
+    ['supervisor', 'memory_inject'],
+    ['supervisor', 'worker_search'],
+    ['supervisor', 'worker_code'],
+    ['supervisor', 'worker_sql'],
+    ['supervisor', 'reflect'],
+  ];
+
+  connections.forEach(([fromKey, toKey]) => {
+    const p1 = new THREE.Vector3(...nodeDefs[fromKey].pos);
+    const p2 = new THREE.Vector3(...nodeDefs[toKey].pos);
+    const points = [p1, p2];
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+    const lineMat = new THREE.LineDashedMaterial({ color: 0x3b82f6, linewidth: 2, scale: 1, dashSize: 0.3, gapSize: 0.15 });
+    const line = new THREE.Line(lineGeo, lineMat);
+    line.computeLineDistances();
+    threeScene.add(line);
+  });
+
+  // Controls
+  const dom = threeRenderer.domElement;
+  dom.addEventListener('mousedown', e => { isDragging3D = true; previousMousePosition = { x: e.clientX, y: e.clientY }; });
+  dom.addEventListener('mousemove', e => {
+    if (!isDragging3D) return;
+    threeScene.rotation.y += (e.clientX - previousMousePosition.x) * 0.008;
+    threeScene.rotation.x += (e.clientY - previousMousePosition.y) * 0.008;
+    previousMousePosition = { x: e.clientX, y: e.clientY };
+  });
+  window.addEventListener('mouseup', () => { isDragging3D = false; });
+  window.addEventListener('resize', resize3DCanvas);
+
+  function animate3D() {
+    requestAnimationFrame(animate3D);
+    starField.rotation.y += 0.0004;
+    physicsClock += 0.03;
+
+    Object.values(threeNodes).forEach((n, idx) => {
+      n.ring.rotation.z += 0.01;
+      n.mesh.position.y = n.basePos[1] + Math.sin(physicsClock + idx) * 0.08;
+    });
+
+    threeBeams.forEach(b => {
+      if (b.progress < 1.0) { b.progress += 0.025; b.particle.position.copy(b.curve.getPoint(b.progress)); }
+      else { b.progress = 0; }
+    });
+
+    threeRenderer.render(threeScene, threeCamera);
+  }
+  animate3D();
+}
+
+function resize3DCanvas() {
+  if (!threeRenderer || !threeCamera) return;
+  const container = $('graph-3d-canvas');
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  const W = rect.width || container.clientWidth || 600;
+  const H = rect.height || container.clientHeight || 400;
+  if (W > 0 && H > 0) {
+    threeCamera.aspect = W / H;
+    threeCamera.updateProjectionMatrix();
+    threeRenderer.setSize(W, H);
+  }
+}
+
+/* CROSS-BROWSER SAFE TEXT LABEL SPRITE (Standard Canvas API) */
+function createTextLabelSprite(text, colorHex) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  
+  ctx.fillStyle = '#12151f';
+  ctx.strokeStyle = '#' + colorHex.toString(16).padStart(6, '0');
+  ctx.lineWidth = 3;
+  
+  // Safe cross-browser rounded rectangle
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(4, 4, 248, 56, 10);
+  } else {
+    ctx.rect(4, 4, 248, 56);
+  }
+  ctx.fill(); ctx.stroke();
+
+  ctx.font = 'Bold 16px Inter, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 128, 32);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(2.2, 0.55, 1.0);
+  return sprite;
+}
+
+function update3DNodeState(node, status) {
+  if (!threeNodes[node]) return;
+  const item = threeNodes[node];
+  if (status === 'running') { item.mat.emissiveIntensity = 1.0; item.mesh.scale.set(1.35, 1.35, 1.35); spawn3DBeamParticle('supervisor', node); }
+  else if (status === 'done') { item.mat.emissiveIntensity = 0.5; item.mesh.scale.set(1.0, 1.0, 1.0); }
+}
+
+function spawn3DBeamParticle(fromKey, toKey) {
+  if (!threeNodes[fromKey] || !threeNodes[toKey]) return;
+  const start = threeNodes[fromKey].mesh.position, end = threeNodes[toKey].mesh.position;
+  const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5); mid.z += 0.9;
+  const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+  const pGeo = new THREE.SphereGeometry(0.12, 16, 16);
+  const pMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6 });
+  const particle = new THREE.Mesh(pGeo, pMat); threeScene.add(particle);
+  threeBeams.push({ curve, particle, progress: 0 });
+}
+
+/* ── 🧠 TOPOLOGY CONNECTION MEMORY ──────────────────────────────────────── */
+function memorizeNodeConnection(node, status, latency) {
+  if (status !== 'done' || !node || node === 'memory_inject') return;
+  const pathKey = `Supervisor ➔ ${node.replace('worker_','').toUpperCase()}`;
+  if (!S.nodeMemory[pathKey]) S.nodeMemory[pathKey] = { path: pathKey, count: 0, totalLatency: 0, targetNode: node };
+  S.nodeMemory[pathKey].count += 1; S.nodeMemory[pathKey].totalLatency += (latency || 500);
+  localStorage.setItem('orchestrator_node_memory', JSON.stringify(S.nodeMemory));
+}
+
+function renderConnectionMemoryMatrix() {
+  const container = $('graph-mem-wrap'); if (!container) return;
+  const entries = Object.values(S.nodeMemory);
+  container.innerHTML = entries.map(item => `
+    <div class="mem-card">
+      <div class="mem-path">
+        <span>${item.path}</span>
+        <button class="mem-replay-btn" onclick="replayMemorizedPath('${item.targetNode}')">Replay 3D Beam</button>
+      </div>
+      <div class="mem-stats">
+        <span>Frequency: ${item.count} runs</span>
+        <span>Avg Latency: ${Math.round(item.totalLatency / (item.count || 1))} ms</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function replayMemorizedPath(targetNode) {
+  switchTab('3dnet');
+  update3DNodeState(targetNode, 'running');
+  showToast(`Replaying 3D spatial connection for ${targetNode}`, 'info');
+  setTimeout(() => update3DNodeState(targetNode, 'done'), 2000);
+}
+
+function clearConnectionMemory() {
+  S.nodeMemory = {}; localStorage.removeItem('orchestrator_node_memory'); renderConnectionMemoryMatrix();
+}
+
+/* ── 📚 VECTOR MEMORY INSPECTOR MODAL ───────────────────────────────────── */
+function openMemoryModal() {
+  $('memory-modal').classList.add('active');
+  fetch(CFG.apiBase + '/api/v1/memory/inspect')
+    .then(r => r.json())
+    .then(data => {
+      $('memory-modal-body').innerHTML = `
+        <div style="font-size:0.75rem;color:var(--text-3);margin-bottom:8px">Engine: ${data.engine} · Dimension: ${data.vector_dimension} · Metric: ${data.distance_metric}</div>
+        ${data.memories.map(m => `
+          <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:0.8rem">
+            <div style="display:flex;justify-content:space-between;color:var(--blue);font-family:'JetBrains Mono';font-size:0.72rem">
+              <span>${m.id} (${m.collection})</span>
+              <span style="color:var(--green)">Sim: ${(m.similarity*100).toFixed(1)}%</span>
+            </div>
+            <div style="margin-top:4px;color:var(--text-1)">${esc(m.payload)}</div>
+          </div>
+        `).join('')}
+      `;
+    })
+    .catch(() => {
+      $('memory-modal-body').innerHTML = `<div style="color:var(--amber);font-size:0.8rem">Showing offline cached Qdrant memories (Dimension: 1536, Cosine)</div>`;
+    });
+}
+function closeMemoryModal() { $('memory-modal').classList.remove('active'); }
+
+/* ── 🎙️ VOICE CONTROL (SPEECH-TO-TEXT) ─────────────────────────────────── */
+function toggleVoiceInput() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    showToast('Voice dictation not supported in this browser', 'info'); return;
+  }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new SpeechRecognition();
+  recognition.onstart = () => { showToast('Listening to voice prompt...', 'info'); $('mic-btn').style.color = 'var(--red)'; };
+  recognition.onresult = e => {
+    $('msg-input').value = e.results[0][0].transcript;
+    $('mic-btn').style.color = 'var(--text-2)';
+    showToast('Voice prompt captured!', 'success');
+  };
+  recognition.onerror = () => { $('mic-btn').style.color = 'var(--text-2)'; };
+  recognition.start();
+}
+
+function exportTrace() {
+  const blob = new Blob([JSON.stringify(S.events, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `trace-${S.threadId || 'session'}.json`; a.click();
+}
+
+function showToast(msg, type = 'info') {
+  const container = $('toasts'); const toast = document.createElement('div');
+  toast.className = `toast ${type}`; toast.innerHTML = `<span>${type === 'success' ? '✓' : '●'}</span><span>${msg}</span>`;
+  container.appendChild(toast); setTimeout(() => toast.remove(), 3500);
+}
+
+$('msg-input').addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); orchestrate(); } });
+
+initConnection(); updateRing();
+setTimeout(init3DSpatialNetwork, 100);
+</script>
+</body>
+</html>
